@@ -1,0 +1,7 @@
+[project]
+name = "lidr-ai-engineering-202609"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []

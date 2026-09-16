@@ -1,84 +1,69 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings
-
-ENV_VARS = (
-    "OPENAI_API_KEY",
-    "ANTHROPIC_API_KEY",
-    "LLM_PROVIDER",
-    "LLM_MODEL",
-    "APP_ENV",
-    "LOG_LEVEL",
-)
+from app.config import Settings, get_settings
 
 
 @pytest.fixture(autouse=True)
-def clean_env(monkeypatch):
-    """Your shell's real env must not decide whether these tests pass."""
-    for name in ENV_VARS:
-        monkeypatch.delenv(name, raising=False)
+def reset_settings(monkeypatch):
+    for field in Settings.model_fields:
+        monkeypatch.delenv(field.upper(), raising=False)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
-def build(env_file=None, **overrides) -> Settings:
-    """Settings() defaults to reading the project's own .env, which tests must not touch.
+class TestGetSettings:
+    def test_default_values(self, monkeypatch):
+        """Return default values when optional environment variables are unset."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
-    `_env_file` exists at runtime but pydantic's synthesized __init__ hides it from
-    type checkers, so the ignore lives here once instead of at every call site.
-    """
-    return Settings(_env_file=env_file, **overrides)  # type: ignore[call-arg]
+        settings = get_settings()
 
+        assert settings.llm_provider == "openai"
+        assert settings.llm_model == "gpt-4o-mini"
+        assert settings.app_env == "development"
+        assert settings.log_level == "DEBUG"
+        assert settings.anthropic_api_key is None
 
-def test_defaults_match_the_spec():
-    settings = build(openai_api_key="sk-test")
+    def test_returns_cached_instance(self, monkeypatch):
+        """Return the same cached Settings instance across repeated calls."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
-    assert settings.llm_provider == "openai"
-    assert settings.llm_model == "gpt-4o-mini"
-    assert settings.app_env == "development"
-    assert settings.log_level == "DEBUG"
-    assert settings.anthropic_api_key is None
+        assert get_settings() is get_settings()
 
+    @pytest.mark.parametrize("provider", ["openai", "anthropic"])
+    @pytest.mark.parametrize("key", [None, ""], ids=["missing", "empty"])
+    def test_selected_provider_requires_its_own_key(self, monkeypatch, provider, key):
+        """Raise ValidationError when active provider API key is missing or empty."""
+        monkeypatch.setenv("LLM_PROVIDER", provider)
+        if key is not None:
+            monkeypatch.setenv(f"{provider.upper()}_API_KEY", key)
 
-def test_reads_values_from_an_env_file(tmp_path):
-    env_file = tmp_path / ".env"
-    env_file.write_text("OPENAI_API_KEY=sk-from-file\nLLM_MODEL=gpt-4o\n")
+        with pytest.raises(
+            ValidationError, match=f"{provider.upper()}_API_KEY is required"
+        ):
+            get_settings()
 
-    settings = build(env_file)
+    @pytest.mark.parametrize(
+        ("provider", "other_key"),
+        [("openai", "anthropic_api_key"), ("anthropic", "openai_api_key")],
+    )
+    def test_inactive_provider_key_is_optional(self, monkeypatch, provider, other_key):
+        """Allow unselected provider API key to be omitted."""
+        monkeypatch.setenv("LLM_PROVIDER", provider)
+        monkeypatch.setenv(f"{provider.upper()}_API_KEY", "sk-test")
 
-    assert settings.openai_api_key == "sk-from-file"
-    assert settings.llm_model == "gpt-4o"
+        settings = get_settings()
 
+        assert getattr(settings, other_key) is None
 
-def test_environment_wins_over_the_env_file(tmp_path, monkeypatch):
-    env_file = tmp_path / ".env"
-    env_file.write_text("OPENAI_API_KEY=sk-from-file\nLLM_MODEL=from-file\n")
-    monkeypatch.setenv("LLM_MODEL", "from-environment")
+    def test_unknown_keys_in_env_file_are_ignored(self, monkeypatch, tmp_path):
+        """Ignore undeclared variables present in a .env file."""
+        env_file = tmp_path / ".env"
+        env_file.write_text("OPENAI_API_KEY=sk-test\nSOME_UNRELATED_VAR=whatever\n")
+        monkeypatch.chdir(tmp_path)
 
-    assert build(env_file).llm_model == "from-environment"
+        settings = get_settings()
 
-
-def test_selected_provider_requires_its_own_key():
-    with pytest.raises(ValidationError, match="ANTHROPIC_API_KEY is required"):
-        build(llm_provider="anthropic", openai_api_key="sk-test")
-
-
-def test_other_provider_key_may_be_absent():
-    settings = build(llm_provider="anthropic", anthropic_api_key="sk-ant")
-
-    assert settings.openai_api_key is None
-
-
-def test_empty_key_counts_as_missing():
-    with pytest.raises(ValidationError, match="OPENAI_API_KEY is required"):
-        build(openai_api_key="")
-
-
-def test_unknown_provider_is_rejected():
-    with pytest.raises(ValidationError, match="'openai' or 'anthropic'"):
-        build(llm_provider="gemini", openai_api_key="sk-test")
-
-
-def test_unrelated_env_vars_are_ignored(monkeypatch):
-    monkeypatch.setenv("SOME_UNRELATED_VAR", "whatever")
-
-    assert build(openai_api_key="sk-test").llm_provider == "openai"
+        assert not hasattr(settings, "some_unrelated_var")

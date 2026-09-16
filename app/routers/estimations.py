@@ -19,7 +19,7 @@ class EstimateResponse(BaseModel):
     provider: Literal["openai", "anthropic"]
 
 
-router = APIRouter(prefix="/api/v1", tags=["estimations"])
+router = APIRouter(tags=["estimations"])
 
 
 @router.post("/estimate")

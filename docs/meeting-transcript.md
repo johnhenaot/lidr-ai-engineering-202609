@@ -1,0 +1,3 @@
+# Meeting Transcript
+
+In the meeting with the marketing team, the client explained that they need a landing page with a contact form, integration with their current CRM (HubSpot), and a blog section with a WYSIWYG editor. The ideal deadline would be to have it ready in 4 weeks. The design already exists in Figma.

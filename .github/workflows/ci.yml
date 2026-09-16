@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Verify required project layout
+        run: |
+          for path in \
+            app/__init__.py app/main.py app/config.py \
+            app/routers/__init__.py app/routers/estimations.py \
+            app/services/__init__.py app/services/llm_service.py \
+            app/context/__init__.py app/context/examples.py \
+            .env.example .gitignore pyproject.toml README.md \
+            docs/meeting-transcript.md docs/estimate-request.json; do
+            test -f "$path" || { echo "missing: $path"; exit 1; }
+          done
+          grep -qx '.env' .gitignore || { echo ".env is not gitignored"; exit 1; }
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run pytest
+      - name: Smoke test server boots and serves health and docs
+        run: |
+          uv run uvicorn app.main:app --port 8000 &
+          for _ in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8000/health && break
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:8000/health | grep -q '"status":"ok"'
+          curl -fsS -o /dev/null http://127.0.0.1:8000/docs
+          kill %1 || true

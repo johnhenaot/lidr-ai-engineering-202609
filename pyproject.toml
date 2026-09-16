@@ -5,6 +5,7 @@ description = "Task estimator with FastAPI + OpenAI (static context, CAG)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "anthropic>=1.6.0",
     "fastapi>=0.141.1",
     "openai>=3.14.1",
     "pydantic-settings>=2.15.0",
@@ -24,7 +25,9 @@ venv = ".venv"
 
 [dependency-groups]
 dev = [
+    "anyio>=4.15.1",
     "pytest>=9.1.1",
+    "pytest-mock>=3.15.1",
     "ruff>=0.16.7",
 ]
 

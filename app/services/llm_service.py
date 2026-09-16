@@ -1,4 +1,10 @@
+from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
+
+from app.config import Settings, get_settings
 from app.context.examples import ESTIMATION_EXAMPLES
+
+MAX_OUTPUT_TOKENS = 4096
 
 ROLE = (
     "You are a senior software estimator at a consultancy. You turn client "
@@ -74,3 +80,41 @@ def build_system_prompt() -> str:
         "</examples>\n\n"
         f"{OUTPUT_RULES}"
     )
+
+
+def _openai_client(api_key: str | None) -> AsyncOpenAI:
+    return AsyncOpenAI(api_key=api_key)
+
+
+def _anthropic_client(api_key: str | None) -> AsyncAnthropic:
+    return AsyncAnthropic(api_key=api_key)
+
+
+async def _estimate_with_openai(transcript: str, settings: Settings) -> str:
+    client = _openai_client(settings.openai_api_key)
+    response = await client.responses.create(
+        model=settings.llm_model,
+        instructions=build_system_prompt(),
+        input=transcript,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+    )
+    return response.output_text
+
+
+async def _estimate_with_anthropic(transcript: str, settings: Settings) -> str:
+    client = _anthropic_client(settings.anthropic_api_key)
+    response = await client.messages.create(
+        model=settings.llm_model,
+        system=build_system_prompt(),
+        messages=[{"role": "user", "content": transcript}],
+        max_tokens=MAX_OUTPUT_TOKENS,
+    )
+    return "".join(block.text for block in response.content if block.type == "text")
+
+
+async def generate_estimation(transcript: str, settings: Settings | None = None) -> str:
+    if settings is None:
+        settings = get_settings()
+    if settings.llm_provider == "anthropic":
+        return await _estimate_with_anthropic(transcript, settings)
+    return await _estimate_with_openai(transcript, settings)

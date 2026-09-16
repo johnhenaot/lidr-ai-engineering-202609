@@ -7,3 +7,12 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.141.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.7",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]
+

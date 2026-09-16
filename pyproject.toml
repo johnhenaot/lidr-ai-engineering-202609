@@ -1,15 +1,30 @@
 [project]
-name = "lidr-ai-engineering-202609"
+name = "s2-estimator-cag"
 version = "0.1.0"
-description = "Add your description here"
+description = "Task estimator with FastAPI + OpenAI (static context, CAG)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi[standard]>=0.141.1",
+    "fastapi>=0.141.1",
+    "openai>=3.14.1",
+    "pydantic-settings>=2.15.0",
+    "python-dotenv>=1.2.3",
+    "uvicorn[standard]>=0.53.0",
 ]
+
+# Let tests import `app` without installing the project as a package.
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+# Point pyright at uv's .venv instead of the PATH interpreter.
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
     "ruff>=0.16.7",
 ]
 

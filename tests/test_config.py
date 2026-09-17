@@ -5,9 +5,11 @@ from app.config import Settings, get_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_settings(monkeypatch):
+def reset_settings(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     for field in Settings.model_fields:
         monkeypatch.delenv(field.upper(), raising=False)
+        monkeypatch.delenv(field.lower(), raising=False)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -58,11 +60,10 @@ class TestGetSettings:
 
         assert getattr(settings, other_key) is None
 
-    def test_unknown_keys_in_env_file_are_ignored(self, monkeypatch, tmp_path):
+    def test_unknown_keys_in_env_file_are_ignored(self, tmp_path):
         """Ignore undeclared variables present in a .env file."""
         env_file = tmp_path / ".env"
         env_file.write_text("OPENAI_API_KEY=sk-test\nSOME_UNRELATED_VAR=whatever\n")
-        monkeypatch.chdir(tmp_path)
 
         settings = get_settings()
 

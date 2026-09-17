@@ -77,4 +77,5 @@ uv run ruff format --check
 ```
 
 CI runs these on every push and PR, plus a folder-structure check and a `/health`
-smoke test. No API keys needed — CI never makes a paid LLM call.
+smoke test. No real API keys needed — CI never makes a paid LLM call (the smoke
+test uses a placeholder key).

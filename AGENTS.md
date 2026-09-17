@@ -29,7 +29,7 @@ uv run pytest -k health                 # by keyword
 - Mirror the module under test: `tests/test_<module>.py`.
 - Mark async tests `@pytest.mark.anyio`; `pytest-asyncio` is not installed.
 - Override settings with `app.dependency_overrides[get_settings]`; clear on teardown.
-- Never make a real LLM call. CI runs without API keys.
+- Never make a real LLM call. CI requires no real secrets; the smoke test sets a placeholder key.
 - Write the test first; watch it fail for the right reason.
 - Test one behavior per test; "and" in a name means split it.
 - Delete any test no production change can turn red, or that another test already covers.
@@ -67,6 +67,8 @@ Check changes with `actionlint` and `zizmor`.
 ## Gotchas
 
 - Call `get_settings()`; never instantiate `Settings()` at import — it crashes pytest collection when no key is set.
+- Lifespan validates settings at startup; inside `with TestClient(app)` it calls `get_settings()` directly, so `dependency_overrides` do not apply during startup.
+- Isolate settings tests with `monkeypatch.chdir(tmp_path)` to prevent `pydantic-settings` from reading a developer's local `.env`.
 - Patch `estimations.generate_estimation`, not the service module; the router imports the name.
 - Check SDK types against the installed version. This stack uses `httpx2`, `Response.output_text` is `str`, and Anthropic's `ContentBlock` is a union — filter `block.type == "text"`.
 - Do not trust LLM arithmetic; PERT sums drift. Compute derived numbers in Python if exactness matters.

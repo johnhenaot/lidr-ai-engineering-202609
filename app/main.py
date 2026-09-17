@@ -1,13 +1,22 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.config import get_settings
 from app.routers import estimations
 
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    get_settings()
+    yield
 
 
 app = FastAPI(
@@ -17,6 +26,7 @@ app = FastAPI(
         "cache-augmented generation with historical estimation examples."
     ),
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.include_router(estimations.router, prefix="/api/v1")

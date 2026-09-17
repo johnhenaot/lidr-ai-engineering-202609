@@ -25,7 +25,10 @@ jobs:
             docs/meeting-transcript.md docs/estimate-request.json; do
             test -f "$path" || { echo "missing: $path"; exit 1; }
           done
-          grep -qx '.env' .gitignore || { echo ".env is not gitignored"; exit 1; }
+          grep -qx '.env' .gitignore || {
+            echo ".env is not gitignored"
+            exit 1
+          }
 
   test:
     runs-on: ubuntu-latest
@@ -33,7 +36,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      # v6.8.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
         with:
           enable-cache: true
       - run: uv sync --locked
@@ -41,6 +45,8 @@ jobs:
       - run: uv run ruff format --check
       - run: uv run pytest
       - name: Smoke test server boots and serves health and docs
+        env:
+          OPENAI_API_KEY: ci-smoke-placeholder
         run: |
           uv run uvicorn app.main:app --port 8000 &
           for _ in $(seq 1 20); do

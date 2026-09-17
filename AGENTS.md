@@ -5,6 +5,8 @@
 FastAPI service turning a client meeting transcript into a structured project
 estimate. CAG architecture: the static examples in `app/context/examples.py` are
 injected into the system prompt on every call; there is no retrieval step.
+The LLM extracts structured estimate drafts, and Python deterministically computes
+all PERT math, contingency, and Markdown rendering.
 
 Python 3.11, uv, Pydantic v2, ruff, pytest. OpenAI (Responses API) or Anthropic
 (Messages API), selected by `LLM_PROVIDER`.
@@ -66,9 +68,5 @@ Check changes with `actionlint` and `zizmor`.
 
 ## Gotchas
 
-- Call `get_settings()`; never instantiate `Settings()` at import — it crashes pytest collection when no key is set.
-- Lifespan validates settings at startup; inside `with TestClient(app)` it calls `get_settings()` directly, so `dependency_overrides` do not apply during startup.
-- Isolate settings tests with `monkeypatch.chdir(tmp_path)` to prevent `pydantic-settings` from reading a developer's local `.env`.
-- Patch `estimations.generate_estimation`, not the service module; the router imports the name.
-- Check SDK types against the installed version. This stack uses `httpx2`, `Response.output_text` is `str`, and Anthropic's `ContentBlock` is a union — filter `block.type == "text"`.
-- Do not trust LLM arithmetic; PERT sums drift. Compute derived numbers in Python if exactness matters.
+- Lifespan calls `get_settings()` directly during startup; `app.dependency_overrides` does not apply inside `with TestClient(app)`.
+- `pydantic-settings` loads `.env` from CWD; isolate settings tests with `monkeypatch.chdir(tmp_path)` to prevent local files from leaking into assertions.

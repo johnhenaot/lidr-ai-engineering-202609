@@ -1,10 +1,12 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, StringConstraints
 
 from app.config import Settings, get_settings
-from app.services.llm_service import generate_estimation
+from app.domain.estimate import EstimationError
+from app.services.estimate_formatter import render_markdown
+from app.services.llm_service import generate_estimate_draft
 
 
 class EstimateRequest(BaseModel):
@@ -27,9 +29,12 @@ async def estimate(
     body: EstimateRequest,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> EstimateResponse:
-    estimation = await generate_estimation(body.transcription, settings)
+    try:
+        draft = await generate_estimate_draft(body.transcription, settings)
+    except EstimationError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
     return EstimateResponse(
-        estimation=estimation,
+        estimation=render_markdown(draft),
         model=settings.llm_model,
         provider=settings.llm_provider,
     )

@@ -1,7 +1,7 @@
 # Software Project Estimator
 
 Turns a client meeting transcript into a structured software project estimate
-(PERT task breakdown, assumptions, exclusions, risks, confidence) via an LLM.
+(PERT task breakdown, assumptions, out of scope, risks, confidence) via an LLM.
 
 Architecture is **CAG** (Cache-Augmented Generation): a small, static set of
 historical estimates is injected into the system prompt on every call — no
@@ -56,17 +56,12 @@ curl -X POST http://localhost:8000/api/v1/estimate \
 
 ## Architecture
 
-Request flow: the router validates the body and resolves `Settings` through FastAPI
-dependency injection, the service assembles the system prompt (role, estimation
-rules, static examples) and calls the provider SDK, and the Markdown estimate comes
-back alongside the model and provider that produced it.
+The router receives the transcript, the LLM service parses it into a structured
+estimate draft (OpenAI Responses or Anthropic Messages API), and Python computes
+all PERT math, contingency, and Markdown formatting deterministically.
 
-The knowledge base is `ESTIMATION_EXAMPLES` — editing that list is how you change
-the house style, and it is the only thing that has to fit in the context window.
-Providers sit behind one prompt and one response contract, so switching between
-OpenAI and Anthropic is a config change, not a code change.
-
-Layout is enforced by CI rather than documented here, so it cannot drift.
+Both providers sit behind a shared prompt and response contract — switching
+between OpenAI and Anthropic is a config change, not a code change.
 
 ## Quality
 
@@ -76,6 +71,6 @@ uv run ruff check
 uv run ruff format --check
 ```
 
-CI runs these on every push and PR, plus a folder-structure check and a `/health`
-smoke test. No real API keys needed — CI never makes a paid LLM call (the smoke
-test uses a placeholder key).
+CI runs these on every push and PR, plus layout verification and a `/health`
+smoke test. No real API keys needed — CI never makes a paid LLM call (smoke test
+uses a placeholder key).

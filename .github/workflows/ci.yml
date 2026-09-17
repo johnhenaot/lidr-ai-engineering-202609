@@ -18,8 +18,10 @@ jobs:
         run: |
           for path in \
             app/__init__.py app/main.py app/config.py \
+            app/domain/__init__.py app/domain/estimate.py \
             app/routers/__init__.py app/routers/estimations.py \
             app/services/__init__.py app/services/llm_service.py \
+            app/services/estimate_formatter.py \
             app/context/__init__.py app/context/examples.py \
             .env.example .gitignore pyproject.toml README.md \
             docs/meeting-transcript.md docs/estimate-request.json; do
